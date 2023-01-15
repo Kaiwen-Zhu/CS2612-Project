@@ -63,6 +63,10 @@ Inductive UP_result :=
 | UP (x: ident) (b: bool)
 | Nothing.
 
+(** Construct UP_result from a clause c.
+If c is empty, return Conflict.
+If there is only one literal (op, x) that is not assgined in J, return UP x op.
+O.w., return Nothing. *)
 Fixpoint find_unit_pro_in_clause (c: clause) (J: partial_asgn) (cont: UP_result): UP_result :=
   match c with
   | nil => cont
@@ -80,6 +84,11 @@ Fixpoint find_unit_pro_in_clause (c: clause) (J: partial_asgn) (cont: UP_result)
 Definition unit_pro' (P: CNF) (J: partial_asgn): list UP_result :=
   map (fun c => find_unit_pro_in_clause c J Conflict) P.
 
+ (* Type of fold_left: (A -> B -> A) -> list B -> A -> A. 
+Below, A is option partial_asgn and B is UP_res. *)
+Check fold_left.
+Print fold_left.
+(** Construct partial asgn from a list of UP_result. *)
 Definition fold_UP_result (rs: list UP_result): option partial_asgn :=
   fold_left (fun (o: option partial_asgn) (r: UP_result) =>
                match r, o with
@@ -89,6 +98,7 @@ Definition fold_UP_result (rs: list UP_result): option partial_asgn :=
                | UP x b, Some J => Some ((x, b) :: J)
                end) rs (Some nil).
 
+(** Improve partial_asgn by unit propagation. *)
 Definition unit_pro (P: CNF) (J: partial_asgn): option partial_asgn :=
   fold_UP_result (unit_pro' P J).
   
@@ -135,30 +145,37 @@ Definition CNF_filter (P: CNF) (J: partial_asgn): CNF :=
 (*                                                                   *)
 (* ***************************************************************** *)
 
+(* If P: CNF is empty, then P is not satisfiable, o.w. pick P is the first literal of P. *)
 Definition pick (P: CNF): ident :=
   match P with
   | ((_, x) :: _) :: _ => x
   | _ => "impossible"%string
   end.
-  
+
 Fixpoint DPLL_UP (P: CNF) (J: partial_asgn) (n: nat): bool :=
-  match n with | O => true | S n' =>
-    match unit_pro P J with
+  match n with 
+  | O => true 
+  | S n' =>
+    match unit_pro P J with  (* apply unit propagation to improve assignment *)
     | None => false
-    | Some kJ => match kJ with
-                 | nil => DPLL_filter P J n'
-                 | _ => DPLL_UP P (kJ ++ J) n'
-                 end
+    | Some kJ => 
+      match kJ with
+        | nil => DPLL_filter P J n'  (* no unit, filter by assignment *)
+        | _ => DPLL_UP P (kJ ++ J) n' (* improve assignment *)
+      end
     end
   end
 with DPLL_filter (P: CNF) (J: partial_asgn) (n: nat): bool :=
-  match n with | O => true | S n' =>
-    DPLL_pick (CNF_filter P J) nil n'
+  match n with 
+    | O => true
+    | S n' => DPLL_pick (CNF_filter P J) nil n' (* eliminate literals that are already known *)
   end
 with DPLL_pick (P: CNF) (J: partial_asgn) (n: nat): bool :=
-  match n with | O => true | S n' =>
-    let x := pick P in
-    DPLL_UP P ((x, true) :: J) n' || DPLL_UP P ((x, false) :: J) n'
+  match n with 
+    | O => true
+    | S n' =>
+      let x := pick P in
+      DPLL_UP P ((x, true) :: J) n' || DPLL_UP P ((x, false) :: J) n'  (* DFS *)
   end.
 
 (* ***************************************************************** *)
@@ -170,7 +187,7 @@ with DPLL_pick (P: CNF) (J: partial_asgn) (n: nat): bool :=
 Local Open Scope string.
 
 Definition cnf1 :=
-  ((true, "x") :: (true, "y") :: nil) :: ((true, "x") :: (false, "y") :: nil) :: nil. 
+  ((true, "x") :: (true, "y") :: nil) :: ((true, "x") :: (false, "y") :: nil) :: nil.
 
 Eval compute in (DPLL_UP cnf1 nil 6).
 
@@ -218,6 +235,7 @@ Definition expand(J:partial_asgn): asgn:=
     | None => true
     end.
 
+
 Definition set_ident(B:asgn)(s:ident)(b:bool):asgn:=
   fun x => if ident_eqdec x s then b else B x.
   
@@ -228,10 +246,13 @@ Definition literal_sat(l: bool * ident)(B:asgn):bool:=
   end. 
 
 Print fold_right.  
-  
+
+ (* Type of fold_right: (B -> A -> A) -> A -> list B -> A. 
+Below, A is bool and B is (bool * ident). *)
 Definition clause_sat(C:clause)(B:asgn):bool:=
   fold_right (fun l => orb (literal_sat l B)) false C.
-  
+
+(* Below, A is bool and B is clause. *)
 Definition CNF_sat (P:CNF)(B:asgn):bool:=
   fold_right (fun c => andb (clause_sat c B)) true P.
 
@@ -253,7 +274,9 @@ Lemma find_unit_pro_in_clause_Conflict:
     find_unit_pro_in_clause c J Conflict = Conflict ->
     asgn_match J B ->
     clause_sat c B = false.
-Proof. Admitted.
+Proof. 
+
+Admitted.
 
 Lemma find_unit_pro_in_clause_Conflict_UP:
   forall c J B x b,
