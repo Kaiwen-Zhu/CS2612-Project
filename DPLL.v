@@ -358,7 +358,28 @@ Lemma CNF_filter_sat: forall P J B,
     CNF_sat P B = true ->
     CNF_sat (CNF_filter P J ) B = true.
 Proof.
-Admitted.
+  intros.
+  induction P.
+  + unfold CNF_sat; unfold fold_right; unfold CNF_filter. 
+    simpl; reflexivity.
+  + unfold CNF_sat in *; unfold fold_right in *; unfold CNF_filter in *; simpl. 
+    destruct (clause_not_ex_true J a) eqn:?; simpl.
+    - destruct (clause_sat a B) eqn:?; simpl.
+      --pose proof clause_filter_sat a J B.
+        pose proof H1 H Heqb0.
+        simpl in H0.
+        specialize (IHP H0).
+        rewrite H2; simpl.
+        apply IHP.
+      --simpl in H0. discriminate.
+    - destruct (clause_sat a B) eqn:?; simpl.
+      --pose proof clause_filter_sat a J B.
+        pose proof H1 H Heqb0.
+        simpl in H0.
+        specialize (IHP H0).
+        apply IHP.
+      --simpl in H0. discriminate.
+Qed.
 
 Lemma CNF_sat_pick_fail: forall x J B,
     asgn_match J B ->
