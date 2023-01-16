@@ -284,7 +284,39 @@ Lemma find_unit_pro_in_clause_Conflict_UP:
     asgn_match J B ->
     clause_sat c B = true ->
     asgn_match ((x, b) :: J) B.
-Proof. Admitted.
+Proof.
+  intros.
+  unfold asgn_match.
+  intros.
+  destruct (ident_eqdec x x0).
+  + simpl in H2.
+     destruct (PV.eqb x x0) eqn:?.
+     - injection H2.
+        intros.
+        subst x0 b0.
+        clear Heqb1 H2.
+        admit.
+        (* induction c.
+        * discriminate H.
+        * destruct a as (op, x0).
+           simpl in H1.
+            *)
+     - subst x0.
+        unfold PV.eqb in Heqb1.
+        destruct (PV.eq_dec x x) eqn:?.
+        * discriminate Heqb1.
+        * contradiction n. tauto.
+  + simpl in H2.
+     destruct (PV.eqb x x0) eqn:?.
+     - destruct (PV.eqb x x0) eqn:?.
+       unfold PV.eqb in Heqb0.
+       destruct (PV.eq_dec x x0) eqn:?.
+       subst x. contradiction n.
+       * tauto.
+       * discriminate Heqb0.
+       * discriminate Heqb1.
+     - apply H0. tauto.
+Admitted.
 
 Lemma clause_filter_sat: forall c J B,
     asgn_match J B ->
