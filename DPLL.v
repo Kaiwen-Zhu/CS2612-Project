@@ -145,7 +145,7 @@ Definition CNF_filter (P: CNF) (J: partial_asgn): CNF :=
 (*                                                                   *)
 (* ***************************************************************** *)
 
-(* If P: CNF is empty, then P is not satisfiable, o.w. pick P is the first literal of P. *)
+(* Pick P is the first literal of P. *)
 Definition pick (P: CNF): ident :=
   match P with
   | ((_, x) :: _) :: _ => x
