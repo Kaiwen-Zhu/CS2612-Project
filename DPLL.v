@@ -305,10 +305,38 @@ Proof.
       destruct (ident_eqdec x x0).
       - subst x0.
         simpl in H0.
-        destruct (PV.eqb x x).
+        destruct (PV.eqb x x) eqn:?.
         * injection H0.
-           
-Admitted.
+           intros. subst b. tauto.
+        * unfold PV.eqb in Heqb0.
+           destruct (PV.eq_dec x x). discriminate Heqb0. contradiction n. tauto.
+      - simpl in H0.
+        destruct (PV.eqb x x0) eqn:?.
+        * unfold PV.eqb in Heqb0.
+          destruct (PV.eq_dec x x0).
+          ++ subst x. contradiction.
+          ++ discriminate Heqb0.
+        * apply H. tauto.
+  + right.
+      unfold asgn_match.
+      intros.
+      destruct (ident_eqdec x x0).
+      - subst x0.
+        simpl in H0.
+        destruct (PV.eqb x x) eqn:?.
+        * injection H0.
+           intros. subst b. tauto.
+        * unfold PV.eqb in Heqb0.
+           destruct (PV.eq_dec x x). discriminate Heqb0. contradiction n. tauto.
+      - simpl in H0.
+        destruct (PV.eqb x x0) eqn:?.
+        * unfold PV.eqb in Heqb0.
+          destruct (PV.eq_dec x x0).
+          ++ subst x. contradiction.
+          ++ discriminate Heqb0.
+        * apply H. tauto.
+Qed.
+(* Admitted. *)
 
 (* ***************************************************************** *)
 (*                                                                   *)
