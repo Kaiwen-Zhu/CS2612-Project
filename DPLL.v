@@ -324,6 +324,13 @@ Lemma clause_filter_sat: forall c J B,
     clause_sat (clause_filter J c) B = true.
 Proof. Admitted.
 
+Lemma CNF_filter_sat: forall P J B,
+    asgn_match J B ->
+    CNF_sat P B = true ->
+    CNF_sat (CNF_filter P J ) B = true.
+Proof.
+Admitted.
+
 Lemma CNF_sat_pick_fail: forall x J B,
     asgn_match J B ->
     asgn_match ((x,true)::J) B \/ asgn_match ((x,false)::J) B.
@@ -397,11 +404,40 @@ with
     False.
 Proof.
   + clear DPLL_UP_false_Jsat.
-      intros.
-      
-      admit.
+      intros n.
+      induction n.
+      - intros.
+        unfold DPLL_UP in H. discriminate H.
+      - intros.
+        simpl in H.
+        destruct (unit_pro P J) eqn:Hup.
+        * destruct p eqn:Hp.
+           ++ specialize (DPLL_filter_false_Jsat n P J B).
+                 apply DPLL_filter_false_Jsat; tauto.
+           ++ specialize (IHn P ((p0 :: p1) ++ J) B).
+                 apply IHn; try tauto.
+                 assert (asgn_match (p0 :: p1) B).
+                 --
+                    admit.
+                 --
+                    admit.
+        * (* conflict is derived *)
+          unfold unit_pro in Hup.
+          admit.
   + clear DPLL_filter_false_Jsat.
-      admit.
+      intros n.
+      induction n.
+      - intros.
+        unfold DPLL_filter in H. discriminate H.
+      - intros.
+        simpl in H.
+        specialize (DPLL_pick_false_Jsat n (CNF_filter P J) [] B).
+        apply DPLL_pick_false_Jsat; try tauto.
+        * specialize (CNF_filter_sat P J B).
+           tauto.
+        * unfold asgn_match.
+           intros.
+           unfold PV.look_up in H2. discriminate H2.
   + clear DPLL_pick_false_Jsat.
       admit.
 Admitted.
