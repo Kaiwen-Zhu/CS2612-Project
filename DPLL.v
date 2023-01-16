@@ -64,7 +64,7 @@ Inductive UP_result :=
 | Nothing.
 
 (** Construct UP_result from a clause c.
-If c is empty, return Conflict.
+If all literals in c contradicts with J, return Conflict.
 If there is only one literal (op, x) that is not assgined in J, return UP x op.
 O.w., return Nothing. *)
 Fixpoint find_unit_pro_in_clause (c: clause) (J: partial_asgn) (cont: UP_result): UP_result :=
@@ -295,7 +295,20 @@ Proof. Admitted.
 Lemma CNF_sat_pick_fail: forall x J B,
     asgn_match J B ->
     asgn_match ((x,true)::J) B \/ asgn_match ((x,false)::J) B.
-Proof. Admitted.
+Proof.
+  intros.
+(*   discuss B x = true or false *)
+  destruct (B x) eqn:?.
+  + left.
+      unfold asgn_match.
+      intros.
+      destruct (ident_eqdec x x0).
+      - subst x0.
+        simpl in H0.
+        destruct (PV.eqb x x).
+        * injection H0.
+           
+Admitted.
 
 (* ***************************************************************** *)
 (*                                                                   *)
@@ -324,6 +337,8 @@ with
     False.
 Proof.
   + clear DPLL_UP_false_Jsat.
+      intros.
+      
       admit.
   + clear DPLL_filter_false_Jsat.
       admit.
