@@ -322,7 +322,36 @@ Lemma clause_filter_sat: forall c J B,
     asgn_match J B ->
     clause_sat c B = true ->
     clause_sat (clause_filter J c) B = true.
-Proof. Admitted.
+Proof. 
+  intros.
+  unfold asgn_match in H.
+  induction c.
+  + unfold clause_sat in H0; unfold fold_right in H0. discriminate.
+  + simpl.
+    destruct a as [op x].
+    destruct (PV.look_up x J) eqn:?; simpl.
+    - destruct (eqb b op) eqn:?; simpl; apply H in Heqo.
+      --rewrite Heqo. 
+        rewrite eqb_true_iff in Heqb0.
+        assert (op = b). { auto. }
+        rewrite <-eqb_true_iff in H1.
+        rewrite H1. simpl; reflexivity. 
+      --unfold clause_sat in H0; unfold fold_right in H0; unfold literal_sat in H0.
+        rewrite Heqo in H0.
+        rewrite eqb_false_iff in Heqb0.
+        assert (op <> b). { auto. }
+        rewrite <-eqb_false_iff in H1.
+        rewrite H1 in H0. 
+        simpl in H0.
+        specialize (IHc H0); apply IHc.
+    - unfold fold_right in H0; unfold literal_sat in H0.
+      destruct (eqb op (B x)) eqn:?; simpl.
+      --reflexivity.
+      --simpl in H0.
+        rewrite Heqb in H0. 
+        simpl in H0.
+        specialize (IHc H0); apply IHc.
+Qed.
 
 Lemma CNF_filter_sat: forall P J B,
     asgn_match J B ->
