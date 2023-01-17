@@ -269,14 +269,57 @@ Definition CNF_sat (P:CNF)(B:asgn):bool:=
      But you can ignore them if you can prove the final theorem
      _[DPLL_sound]_ without these lemmas. *)
 
+Lemma UP_cannot_to_Conflict: forall c J x op,
+  find_unit_pro_in_clause c J (UP x op) = Conflict -> False.
+Proof.
+  intros.
+  induction c.
+  + simpl in H. discriminate H.
+  + simpl in H.
+      destruct a as (op0, x0).
+      destruct (PV.look_up x0 J) eqn:?.
+      - destruct (eqb op0 b) eqn:?.
+        * discriminate H.
+        * tauto.
+      - discriminate H.
+Qed.
+
 Lemma find_unit_pro_in_clause_Conflict:
   forall c J B,
     find_unit_pro_in_clause c J Conflict = Conflict ->
     asgn_match J B ->
     clause_sat c B = false.
-Proof. 
-
-Admitted.
+Proof.
+  intros.
+  induction c.
+  + simpl. tauto.
+  + simpl.
+      unfold orb.
+      destruct (literal_sat a B) eqn:?.
+      - simpl in H.
+        destruct a as (op,x).
+        destruct (PV.look_up x J) eqn:?.
+        * unfold asgn_match in H0.
+           specialize (H0 x b).
+           specialize (H0 Heqo).
+           unfold literal_sat in Heqb.
+           rewrite H0 in Heqb.
+           rewrite Heqb in H.
+           discriminate H.
+        * specialize (UP_cannot_to_Conflict c J x op). tauto.
+      - apply IHc.
+        simpl in H.
+        destruct a as (op,x).
+        destruct (PV.look_up x J) eqn:?.
+        * unfold asgn_match in H0.
+           specialize (H0 x b).
+           specialize (H0 Heqo).
+           unfold literal_sat in Heqb.
+           rewrite H0 in Heqb.
+           rewrite Heqb in H.
+           tauto.
+        * specialize (UP_cannot_to_Conflict c J x op). tauto.
+Qed.
 
 Lemma find_unit_pro_in_clause_Conflict_UP:
   forall c J B x b,
