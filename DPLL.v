@@ -145,7 +145,7 @@ Definition CNF_filter (P: CNF) (J: partial_asgn): CNF :=
 (*                                                                   *)
 (* ***************************************************************** *)
 
-(* Pick P is the first literal of P. *)
+(* Pick P is the first identifier of P. *)
 Definition pick (P: CNF): ident :=
   match P with
   | ((_, x) :: _) :: _ => x
@@ -358,7 +358,28 @@ Lemma CNF_filter_sat: forall P J B,
     CNF_sat P B = true ->
     CNF_sat (CNF_filter P J ) B = true.
 Proof.
-Admitted.
+  intros.
+  induction P.
+  + unfold CNF_sat; unfold fold_right; unfold CNF_filter. 
+    simpl; reflexivity.
+  + unfold CNF_sat in *; unfold fold_right in *; unfold CNF_filter in *; simpl. 
+    destruct (clause_not_ex_true J a) eqn:?; simpl.
+    - destruct (clause_sat a B) eqn:?; simpl.
+      --pose proof clause_filter_sat a J B.
+        pose proof H1 H Heqb0.
+        simpl in H0.
+        specialize (IHP H0).
+        rewrite H2; simpl.
+        apply IHP.
+      --simpl in H0. discriminate.
+    - destruct (clause_sat a B) eqn:?; simpl.
+      --pose proof clause_filter_sat a J B.
+        pose proof H1 H Heqb0.
+        simpl in H0.
+        specialize (IHP H0).
+        apply IHP.
+      --simpl in H0. discriminate.
+Qed.
 
 Lemma CNF_sat_pick_fail: forall x J B,
     asgn_match J B ->
@@ -406,6 +427,30 @@ Proof.
 Qed.
 (* Admitted. *)
 
+Lemma unit_pro_keep_match: forall P J J1 B,
+  unit_pro P J = Some J1 ->
+  CNF_sat P B = true ->
+  asgn_match J B ->
+  asgn_match (J1 ++ J) B.
+Proof.
+  
+Admitted.
+
+(* Lemma asgn_match_concat: forall J1 J2 B,
+  asgn_match J1 B ->
+  asgn_match J2 B ->
+  asgn_match (J1 ++ J2) B.
+Proof.
+
+Admitted. *)
+
+Lemma split_keep_none: forall rs x b,
+  fold_UP_result (UP x b :: rs) = None ->
+  fold_UP_result rs = None.
+Proof.
+  
+Admitted.
+
 (* ***************************************************************** *)
 (*                                                                   *)
 (*                                                                   *)
@@ -413,6 +458,15 @@ Qed.
 (*                                                                   *)
 (*                                                                   *)
 (* ***************************************************************** *)
+
+Definition impr_pa  :=
+      fun (o: option partial_asgn) (r: UP_result) =>
+           match r, o with
+           | _, None => None
+           | Nothing, _ => o
+           | Conflict, _ => None
+           | UP x b, Some J => Some ((x, b) :: J)
+           end.
 
 Lemma DPLL_UP_false_Jsat: forall n P J B,
     DPLL_UP P J n = false ->
@@ -443,16 +497,53 @@ Proof.
         * destruct p eqn:Hp.
            ++ specialize (DPLL_filter_false_Jsat n P J B).
                  apply DPLL_filter_false_Jsat; tauto.
-           ++ specialize (IHn P ((p0 :: p1) ++ J) B).
+           ++ rewrite <- Hp in *.
+                 specialize (IHn P (p ++ J) B).
                  apply IHn; try tauto.
-                 assert (asgn_match (p0 :: p1) B).
-                 --
-                    admit.
-                 --
-                    admit.
+                 specialize (unit_pro_keep_match P J p B).
+                 intros. tauto.
         * (* conflict is derived *)
-          unfold unit_pro in Hup.
-          admit.
+           (* One clause contradicts with J, so B cannot satisfy P. *)
+          induction P.
+          ++ unfold unit_pro in Hup.
+                simpl in Hup.
+                unfold fold_UP_result in Hup.
+                simpl in Hup. discriminate Hup.
+          ++ (* If _[a]_ contradicts with _[J]_, then _[B]_ cannot satisfy _[a]_.
+                O.w., use _[IHP]_. *)
+                destruct (find_unit_pro_in_clause a J Conflict) eqn:Ha.
+                -- specialize (find_unit_pro_in_clause_Conflict a J B).
+                    intros.
+                    specialize (H2 Ha H1).
+                    simpl in H0.
+                    unfold andb in H0.
+                    rewrite H2 in H0. discriminate H0.
+                -- apply IHP.
+                   ** unfold unit_pro in Hup.
+                        simpl in Hup.
+                        rewrite Ha in Hup.
+                        specialize (split_keep_none (unit_pro' P J) x b).
+                        tauto.
+                   ** simpl in H0.
+                        unfold andb in H0.
+                        destruct (clause_sat a B).
+                        +++ tauto.
+                        +++ discriminate H0.
+                -- apply IHP.
+                   ** unfold unit_pro in Hup.
+                        simpl in Hup.
+                        rewrite Ha in Hup.
+                        assert (fold_UP_result (unit_pro' P J) = None). {
+                          unfold fold_UP_result in Hup.
+                          simpl in Hup.
+                          tauto.
+                        }
+                        tauto.
+                   ** simpl in H0.
+                        unfold andb in H0.
+                        destruct (clause_sat a B).
+                        +++ tauto.
+                        +++ discriminate H0.
   + clear DPLL_filter_false_Jsat.
       intros n.
       induction n.
@@ -468,11 +559,40 @@ Proof.
            intros.
            unfold PV.look_up in H2. discriminate H2.
   + clear DPLL_pick_false_Jsat.
-      admit.
+      intros n.
+      induction n.
+      - intros.
+        unfold DPLL_pick in H. discriminate H.
+      - intros.
+        simpl in H.
+        remember (pick P) as x.
+        unfold orb in H.
+        destruct (DPLL_UP P ((x, true) :: J) n) eqn:?.
+        * discriminate H.
+        * specialize (CNF_sat_pick_fail x J B).
+           intros.
+           apply H2 in H1. clear H2.
+           destruct H1.
+           ++ specialize (DPLL_UP_false_Jsat n P ((x, true) :: J) B).
+                 apply DPLL_UP_false_Jsat; try tauto.
+           ++ specialize (DPLL_UP_false_Jsat n P ((x, false) :: J) B).
+                 apply DPLL_UP_false_Jsat; try tauto.
 Admitted.
 
 Theorem DPLL_sound: forall n P M,
   DPLL_UP P nil n = false ->
   CNF_sat P M = false.
 Proof.
-Admitted.
+  intros.
+  specialize (DPLL_UP_false_Jsat n P nil M).
+  intros.
+  destruct (CNF_sat P M) eqn:?.
+  + apply H0 in H.
+      - contradiction H.
+      - tauto.
+      - unfold asgn_match.
+        intros.
+        simpl in H1.
+        discriminate H1.
+  + tauto.
+Qed.
