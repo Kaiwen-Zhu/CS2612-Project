@@ -321,6 +321,14 @@ Proof.
         * specialize (UP_cannot_to_Conflict c J x op). tauto.
 Qed.
 
+Lemma UP_remain:
+  forall c J x b x0 b0,
+    find_unit_pro_in_clause c J (UP x0 b0) = UP x b ->
+    (x = x0 /\ b = b0).
+Proof.
+  intros.
+Admitted.
+
 Lemma find_unit_pro_in_clause_Conflict_UP:
   forall c J B x b,
     find_unit_pro_in_clause c J Conflict = UP x b ->
@@ -336,14 +344,47 @@ Proof.
      destruct (PV.eqb x x0) eqn:?.
      - injection H2.
         intros.
-        subst x0 b0.
+        subst x0 b0. 
         clear Heqb1 H2.
-        admit.
-        (* induction c.
+        (* admit. *)
+        induction c.
         * discriminate H.
         * destruct a as (op, x0).
            simpl in H1.
-            *)
+           unfold orb in H1.
+           destruct (eqb op (B x0)) eqn:Hop.
+           ++ clear H1.
+                 simpl in H.
+                 destruct (PV.look_up x0 J) eqn:Hx0.
+                 -- destruct (eqb op b0) eqn:?.
+                     ** discriminate H.
+                     ** specialize (H0 x0 b0 Hx0).
+                          rewrite H0 in Hop.
+                          rewrite eqb_true_iff in Hop. rewrite <- Hop in *.
+                          rewrite eqb_false_iff in Heqb1. congruence.
+                 -- specialize (UP_remain c J x b x0 op). intros.
+                     specialize (H1 H). destruct H1. subst x0 op.
+admit.
+           ++ simpl in H.
+                 destruct (PV.look_up x0 J) eqn:Hx0.
+                 -- unfold asgn_match in H0.
+                     specialize (H0 x0 b0).
+                     specialize (H0 Hx0). subst b0.
+                     rewrite Hop in H. tauto.
+                 -- specialize (UP_remain c J x b x0 op). intros.
+                     specialize (H2 H). destruct H2. subst x0 op.
+                     admit.
+                     (* ** subst x0.
+                          destruct (eqb b op) eqn:?Hb.
+                          +++ rewrite eqb_true_iff in Hb. subst op.
+                                   apply IHc; try tauto.
+                                  (*  All identifiers in c contradicts with J, so H1 is impossible. *)
+admit.
+                          +++ (* H is impossible *)
+admit.
+                     ** (* H is impossible *)
+                          
+ admit. *)
      - subst x0.
         unfold PV.eqb in Heqb1.
         destruct (PV.eq_dec x x) eqn:?.
@@ -441,7 +482,9 @@ Proof.
         * injection H0.
            intros. subst b. tauto.
         * unfold PV.eqb in Heqb0.
-           destruct (PV.eq_dec x x). discriminate Heqb0. contradiction n. tauto.
+           destruct (PV.eq_dec x x). 
+           ++ discriminate Heqb0.
+           ++ contradiction n. tauto.
       - simpl in H0.
         destruct (PV.eqb x x0) eqn:?.
         * unfold PV.eqb in Heqb0.
@@ -468,7 +511,61 @@ Proof.
           ++ discriminate Heqb0.
         * apply H. tauto.
 Qed.
-(* Admitted. *)
+
+Lemma none_implies_none: forall rs,
+  fold_left (fun (o: option partial_asgn) (r: UP_result) =>
+           match r, o with
+           | _, None => None
+           | Nothing, _ => o
+           | Conflict, _ => None
+           | UP x b, Some J => Some ((x, b) :: J)
+           end) rs None = None.
+Proof.
+  induction rs; simpl.
+  + tauto.
+  + destruct a; tauto.
+Qed.
+
+Lemma none_hold: forall rs J1 J2,
+  fold_left (fun (o: option partial_asgn) (r: UP_result) =>
+           match r, o with
+           | _, None => None
+           | Nothing, _ => o
+           | Conflict, _ => None
+           | UP x b, Some J => Some ((x, b) :: J)
+           end) rs (Some J1) = None ->
+  fold_left (fun (o: option partial_asgn) (r: UP_result) =>
+           match r, o with
+           | _, None => None
+           | Nothing, _ => o
+           | Conflict, _ => None
+           | UP x b, Some J => Some ((x, b) :: J)
+           end) rs (Some J2) = None.
+Proof.
+  induction rs.
+  + simpl. intros. discriminate H.
+  + intros. simpl in *.
+      destruct a eqn:Ha.
+      - specialize (none_implies_none rs). intros. tauto.
+      - specialize (IHrs ((x, b) :: J1) ((x, b) :: J2)). tauto.
+      - specialize (IHrs J1 J2). tauto.
+Qed.
+
+Lemma split_keep_none: forall rs x b,
+  fold_UP_result (UP x b :: rs) = None ->
+  fold_UP_result rs = None.
+Proof.
+  intros. unfold fold_UP_result in *. simpl in H.
+  specialize (none_hold rs [(x, b)] []). intros. tauto.
+Qed.
+
+Lemma none_remain: forall rs x b,
+  fold_UP_result rs = None ->
+  fold_UP_result (UP x b :: rs) = None.
+Proof.
+  intros. unfold fold_UP_result in *. simpl.
+  specialize (none_hold rs [] [(x,b)]). intros. tauto.
+Qed.
 
 Lemma unit_pro_keep_match: forall P J J1 B,
   unit_pro P J = Some J1 ->
@@ -476,23 +573,50 @@ Lemma unit_pro_keep_match: forall P J J1 B,
   asgn_match J B ->
   asgn_match (J1 ++ J) B.
 Proof.
-  
+  induction P.
+  + intros.
+      unfold unit_pro in H.
+      simpl in H.
+      unfold fold_UP_result in H.
+      simpl in H.
+      injection H. intros. rewrite <- H2. simpl. tauto.
+  + intros.
+      remember (unit_pro P J) as oJ2.
+      assert (unit_pro P J = oJ2) by auto.
+      destruct oJ2 eqn:?.
+      - remember p as J2.
+        specialize (IHP J J2 B).
+        simpl in H0. unfold andb in H0.
+        destruct (clause_sat a B) eqn:?.
+        * specialize (IHP H2 H0 H1).
+           destruct (find_unit_pro_in_clause a (J2 ++ J) Conflict) eqn:Ha.
+           ++ 
+                 
+admit.
+           ++ specialize (find_unit_pro_in_clause_Conflict_UP a (J2 ++ J) B x b).
+                 intros.
+                 specialize (H3 Ha IHP Heqb).
+                 unfold asgn_match. intros.
+                 unfold asgn_match in H3.
+                 specialize (H3 x0 b0). apply H3.
+                 
+admit.
+           ++ 
+                 
+admit.
+        * discriminate H0.
+      - unfold unit_pro in H, H2. simpl in H.
+        destruct (find_unit_pro_in_clause a J Conflict) eqn:?.
+        * unfold fold_UP_result in H. simpl in H.
+           specialize (none_implies_none (unit_pro' P J)). intros.
+           rewrite H3 in H. discriminate H.
+        * specialize (none_remain (unit_pro' P J) x b).
+           intros. specialize (H3 H2). rewrite H3 in H. discriminate H.
+        * unfold fold_UP_result in H, H2. simpl in H.
+           rewrite H in H2. discriminate H2.
 Admitted.
 
-(* Lemma asgn_match_concat: forall J1 J2 B,
-  asgn_match J1 B ->
-  asgn_match J2 B ->
-  asgn_match (J1 ++ J2) B.
-Proof.
 
-Admitted. *)
-
-Lemma split_keep_none: forall rs x b,
-  fold_UP_result (UP x b :: rs) = None ->
-  fold_UP_result rs = None.
-Proof.
-  
-Admitted.
 
 (* ***************************************************************** *)
 (*                                                                   *)
@@ -501,15 +625,6 @@ Admitted.
 (*                                                                   *)
 (*                                                                   *)
 (* ***************************************************************** *)
-
-Definition impr_pa  :=
-      fun (o: option partial_asgn) (r: UP_result) =>
-           match r, o with
-           | _, None => None
-           | Nothing, _ => o
-           | Conflict, _ => None
-           | UP x b, Some J => Some ((x, b) :: J)
-           end.
 
 Lemma DPLL_UP_false_Jsat: forall n P J B,
     DPLL_UP P J n = false ->
@@ -620,7 +735,7 @@ Proof.
                  apply DPLL_UP_false_Jsat; try tauto.
            ++ specialize (DPLL_UP_false_Jsat n P ((x, false) :: J) B).
                  apply DPLL_UP_false_Jsat; try tauto.
-Admitted.
+Qed.
 
 Theorem DPLL_sound: forall n P M,
   DPLL_UP P nil n = false ->
