@@ -327,7 +327,48 @@ Lemma UP_remain:
     (x = x0 /\ b = b0).
 Proof.
   intros.
-Admitted.
+  induction c.
+  + simpl in H. injection H. auto.
+  + simpl in H. destruct a as (op,x1).
+      destruct (PV.look_up x1 J) eqn:H1.
+      - destruct (eqb op b1) eqn:Hop.
+        * discriminate H.
+        * auto.
+      - discriminate H.
+Qed.
+
+Lemma UP_unchange_implies_unmatch:
+  forall c J B x b,
+    find_unit_pro_in_clause c J (UP x b) = UP x b ->
+    clause_sat c B = true ->
+    asgn_match J B ->
+    False.
+Proof.
+  intros.
+  induction c.
+  + simpl in H0. discriminate H0.
+  + destruct a as (b0, x0).
+      simpl in H0.
+      unfold orb in H0.
+      destruct (eqb b0 (B x0)) eqn:Hb0.
+      - simpl in H.
+        destruct (PV.look_up x0 J) eqn:?.
+        * destruct (eqb b0 b1) eqn:Hb1.
+          ++ discriminate H.
+          ++ unfold asgn_match in H1.
+                specialize (H1 x0 b1 Heqo).
+                rewrite eqb_true_iff in Hb0.
+                rewrite <- Hb0 in H1.
+                rewrite eqb_false_iff in Hb1. auto.
+        * discriminate H. 
+      - apply IHc; try tauto. clear IHc.
+        simpl in H.
+        destruct (PV.look_up x0 J) eqn:?.
+        * destruct (eqb b0 b1) eqn:Hb1.
+           ++ discriminate H.
+           ++ tauto.
+        * discriminate H.
+Qed.
 
 Lemma find_unit_pro_in_clause_Conflict_UP:
   forall c J B x b,
@@ -337,70 +378,42 @@ Lemma find_unit_pro_in_clause_Conflict_UP:
     asgn_match ((x, b) :: J) B.
 Proof.
   intros.
-  unfold asgn_match.
-  intros.
-  destruct (ident_eqdec x x0).
-  + simpl in H2.
-     destruct (PV.eqb x x0) eqn:?.
-     - injection H2.
-        intros.
-        subst x0 b0. 
-        clear Heqb1 H2.
-        (* admit. *)
-        induction c.
-        * discriminate H.
-        * destruct a as (op, x0).
-           simpl in H1.
-           unfold orb in H1.
-           destruct (eqb op (B x0)) eqn:Hop.
-           ++ clear H1.
-                 simpl in H.
-                 destruct (PV.look_up x0 J) eqn:Hx0.
-                 -- destruct (eqb op b0) eqn:?.
-                     ** discriminate H.
-                     ** specialize (H0 x0 b0 Hx0).
-                          rewrite H0 in Hop.
-                          rewrite eqb_true_iff in Hop. rewrite <- Hop in *.
-                          rewrite eqb_false_iff in Heqb1. congruence.
-                 -- specialize (UP_remain c J x b x0 op). intros.
-                     specialize (H1 H). destruct H1. subst x0 op.
-admit.
-           ++ simpl in H.
-                 destruct (PV.look_up x0 J) eqn:Hx0.
-                 -- unfold asgn_match in H0.
-                     specialize (H0 x0 b0).
-                     specialize (H0 Hx0). subst b0.
-                     rewrite Hop in H. tauto.
-                 -- specialize (UP_remain c J x b x0 op). intros.
-                     specialize (H2 H). destruct H2. subst x0 op.
-                     admit.
-                     (* ** subst x0.
-                          destruct (eqb b op) eqn:?Hb.
-                          +++ rewrite eqb_true_iff in Hb. subst op.
-                                   apply IHc; try tauto.
-                                  (*  All identifiers in c contradicts with J, so H1 is impossible. *)
-admit.
-                          +++ (* H is impossible *)
-admit.
-                     ** (* H is impossible *)
-                          
- admit. *)
-     - subst x0.
-        unfold PV.eqb in Heqb1.
-        destruct (PV.eq_dec x x) eqn:?.
-        * discriminate Heqb1.
-        * contradiction n. tauto.
-  + simpl in H2.
-     destruct (PV.eqb x x0) eqn:?.
-     - destruct (PV.eqb x x0) eqn:?.
-       unfold PV.eqb in Heqb0.
-       destruct (PV.eq_dec x x0) eqn:?.
-       subst x. contradiction n.
-       * tauto.
-       * discriminate Heqb0.
-       * discriminate Heqb1.
-     - apply H0. tauto.
-Admitted.
+  induction c; simpl.
+  + unfold clause_sat in *; unfold fold_right in *; discriminate.
+  + destruct a as [op id].
+    unfold find_unit_pro_in_clause in *.
+    destruct (PV.look_up id J) eqn:?.
+    - destruct (eqb op b0) eqn:?.
+      -- discriminate.
+      -- pose proof IHc H.
+        simpl in H1.
+        pose proof H0 id b0.
+        specialize (H3 Heqo).
+        rewrite H3 in H1.
+        rewrite Heqb1 in H1.
+        simpl in H1.
+        specialize (H2 H1).
+        apply H2.
+    - simpl in *.
+      unfold asgn_match in *. 
+      simpl in *.
+      intros.
+      destruct (PV.eqb x x0) eqn:?.
+      -- pose proof PV.eqb_eq x x0.
+         rewrite H3 in Heqb1.
+         injection H2. intros. subst x0 b0. simpl in *.
+         assert (find_unit_pro_in_clause c J (UP id op) = UP x b) by auto. clear H.
+         specialize (UP_remain c J x b id op). intros.
+         specialize (H H4). destruct H. subst id op. clear H2 H3.
+         unfold orb in H1.
+         destruct (eqb b (B x)) eqn:HB.
+         * rewrite eqb_true_iff in HB. auto.
+         * specialize (UP_unchange_implies_unmatch c J B x b). intros.
+            specialize (H H4 H1 H0). contradiction H.
+      -- pose proof H0 x0 b0.
+         specialize (H3 H2).
+         apply H3.
+Qed.
 
 Lemma clause_filter_sat: forall c J B,
     asgn_match J B ->
