@@ -580,31 +580,6 @@ Proof.
   specialize (none_hold rs [] [(x,b)]). intros. tauto.
 Qed.
 
-Lemma asgn_match_join: forall J1 J2 B,
-  asgn_match J1 B ->
-  asgn_match J2 B ->
-  asgn_match (J1 ++ J2) B.
-Proof.
-  
-Admitted.
-
-Lemma asgn_match_split: forall J1 J2 B,
-  asgn_match (J1 ++ J2) B ->
-  asgn_match J1 B.
-Proof.
-  
-Admitted.
-
-Lemma asgn_match_impr: forall J1 J2 B x b rs,
-  fold_UP_result (UP x b :: rs) = Some J1 ->
-  fold_UP_result rs = Some J2 ->
-  asgn_match J2 B ->
-  B x = b ->
-  asgn_match J1 B.
-Proof.
-  
-Admitted.
-
 Lemma unit_pro_keep_match: forall P J J1 B,
   unit_pro P J = Some J1 ->
   CNF_sat P B = true ->
@@ -635,23 +610,28 @@ Proof.
                  rewrite H3 in H. discriminate H.
            ++ pose proof find_unit_pro_in_clause_Conflict_UP a J B x b.
                  specialize (H3 Ha H1 Heqb).
-                 unfold unit_pro in H. simpl in H.
-                 rewrite Ha in H.
-                 assert (asgn_match J1 B). {
-                   specialize (asgn_match_split J2 J B). intros.
-                   specialize (H4 IHP).
-                   unfold unit_pro in H2.
-                   assert (B x = b). {
+                 assert (B x = b). {
                      unfold asgn_match in H3.
                      specialize (H3 x b). simpl in H3.
                      assert (PV.eqb x x = true). {
                         rewrite PV.eqb_eq. tauto.
                      }
-                     rewrite H5 in H3. auto.
-                   }
-                   specialize (asgn_match_impr J1 J2 B x b (unit_pro' P J)). intros. auto.
+                     rewrite H4 in H3. auto.
                  }
-                 specialize (asgn_match_join J1 J B). auto.
+                 unfold unit_pro in H. simpl in H.
+                 rewrite Ha in H.
+                 unfold unit_pro in H2.
+                 admit.
+                 (* unfold asgn_match. intros.
+                 destruct (PV.look_up x0 (J2 ++ J)) eqn:HJ.
+                 -- unfold asgn_match in IHP.
+                     specialize (IHP x0 b0).
+                     destruct (eqb b0 b1) eqn:Hb0.
+                     ** rewrite eqb_true_iff in Hb0. subst b1. auto.
+                     ** (* This is impossible because J1++J cannot contradicts with J2++J. *)
+                         admit.
+                 -- (* x0 must be x *)
+                    admit. *)
            ++ assert (J1 = J2). {
                    unfold unit_pro in H. simpl in H.
                    rewrite Ha in H.
@@ -671,7 +651,7 @@ Proof.
            intros. specialize (H3 H2). rewrite H3 in H. discriminate H.
         * unfold fold_UP_result in H, H2. simpl in H.
            rewrite H in H2. discriminate H2.
-Qed.
+Admitted.
 
 
 
